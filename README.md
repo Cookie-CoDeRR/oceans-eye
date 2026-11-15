@@ -21,7 +21,7 @@ language instead:
 
 ## Run it
 
-Requires Node 18+ (developed on Node 22). No dependencies, no API keys, no build step.
+Requires Node 18+ (developed on Node 22). No npm dependencies and no build step. The public data sources need no API keys. The optional AI assistant needs its own model credential (see below).
 
 ```
 node server.mjs
@@ -29,6 +29,10 @@ node server.mjs
 ```
 
 Optional: `PORT=9000 node server.mjs`
+
+Tests: `node --test test/*.test.mjs`
+
+The app calls live public services (OBIS, NOAA ERDDAP, Open-Meteo, Wikimedia). If one is unreachable, the matching panel shows an error or empty result. At the time of writing, NOAA ERDDAP was intermittently unreachable, which affects the SST layer and trend.
 
 ## Endpoints
 
@@ -41,6 +45,9 @@ Optional: `PORT=9000 node server.mjs`
 | `/api/trend?lat=<>&lon=<>` | Series + deseasonalized trend, uncertainty, Mann-Kendall z |
 | `/api/cell?lat=<>&lon=<>` | Per-cell briefing: current SST, waves/current, weather (model output) |
 | `/api/species/series?name=<>` | OBIS reported records per year (reporting effort, not abundance) |
+| `/api/species/photo?name=<>` | Species photo only when an exact taxon match and a licensed, credited Wikimedia Commons image are found |
+| `/api/waves/field?...` | Open-Meteo marine wave field (model output) |
+| `POST /api/ask` | Optional AI assistant (see below); `GET` reports whether it is configured |
 
 Every payload includes `source` with the exact upstream URL, so consumers can
 verify against the original dataset.
@@ -84,13 +91,32 @@ the team; AI tools were used to accelerate implementation. AI-generated code
 is acknowledged here and in source-file headers. Any AI-generated artwork
 used with this project is watermarked/marked as AI-generated.
 
+## AI assistant (optional)
+
+`/api/ask` is an LLM assistant that can call the same public-data routes as tools.
+It runs only on the server and is off unless configured with environment
+variables: `OE_AI_KEY` (required to enable it), `OE_AI_BASE_URL` (any
+OpenAI-compatible chat-completions API; default OpenRouter) and `OE_AI_MODEL`.
+No key is stored in this repository or sent to the browser. The assistant is
+told to ground answers in tool results and to cite the dataset and valid time,
+but it is a language model and can make mistakes. Without a key the app falls
+back to the keyword helper. Rounds, tokens and daily questions are capped.
+
+## Limits
+
+- Prototype as of 15 Nov 2026, not a scientific, safety, navigation or fishing tool.
+- OBIS shows reported records, which reflect survey effort, not abundance.
+- Wave, current and wind values are model output, not station observations.
+- Trend significance is indicative only.
+- This repository contains the source only. The hosted demo is not part of it.
+
 ## Basemap
 
 OpenStreetMap contributors (raster tiles, darkened via CSS for readability).
 
 ## Interface
 
-A chat-style panel answers keyword-parsed questions (no LLM) and shows map
+A chat-style panel answers keyword-parsed questions and shows map
 taps as compact trend + current-conditions cards; sources and method sit
 behind a collapsed details line on each card. A role selector (researcher /
 student / fisherman) adjusts wording and suggested questions only - facts,
