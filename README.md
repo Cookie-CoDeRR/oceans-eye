@@ -102,6 +102,11 @@ told to ground answers in tool results and to cite the dataset and valid time,
 but it is a language model and can make mistakes. Without a key the app falls
 back to the keyword helper. Rounds, tokens and daily questions are capped.
 
+**Privacy:** when the assistant is on, each question and the data it fetched as
+context are sent to the model provider (OpenRouter and the model's host). The
+free endpoint may retain or log them, and we have not verified its retention
+terms. Do not enter sensitive or personal information.
+
 ## Limits
 
 - Prototype as of 15 Nov 2026, not a scientific, safety, navigation or fishing tool.
