@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ocean's Eye - one map for ocean data</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="err" style="display:none"></div>
+<header id="topbar">
+  <div id="brand">
+    <span id="brand-mark">&#9673;</span>
+    <span id="brand-name">Ocean's Eye</span>
+    <span id="brand-sub">one map for public ocean data</span>
+  </div>
+  <nav id="view-nav">
+    <button class="view-btn on" data-view="map">Map</button>
+    <button class="view-btn" data-view="catalog">Data &amp; API</button>
+  </nav>
+  <div id="querybar">
+    <input id="query" type="text" autocomplete="off"
+      placeholder='Search species or places, e.g. "whale shark" or "Arabian Sea"' />
+    <button id="query-go">Ask</button>
+  </div>
+  <div id="role-row" title="View preference - not sign-in">
+    <span id="role-label">I am a:</span>
+    <button class="role-chip" data-role="researcher">Researcher</button>
+    <button class="role-chip" data-role="student">Student</button>
+    <button class="role-chip" data-role="fisherman">Fisherman</button>
+  </div>
+</header>
+
+<main id="map-wrap">
+  <div id="map"></div>
+
+  <div id="layers-box">
+    <button id="layers-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg> Layers</button>
+    <div id="layers-pop" class="hidden">
+      <div class="layers-title">Layers</div>
+      <div class="layers-group">Base map</div>
+      <button class="base-card on" data-base="street">
+        <span class="base-dot" style="background:#8fa9bd"></span>
+        <span class="base-text"><b>Street map</b><span class="base-sub">OpenStreetMap reference map</span></span>
+        <span class="base-active">active</span>
+      </button>
+      <button class="base-card" data-base="satellite">
+        <span class="base-dot" style="background:#3e5c39"></span>
+        <span class="base-text"><b>Natural satellite</b><span class="base-sub">Esri World Imagery visible spectrum</span></span>
+        <span class="base-active">active</span>
+      </button>
+      <div id="overlay-list"></div>
+      <div class="layers-group">Sensor thresholds</div>
+      <div class="thresh-row">
+        <span class="thresh-lab">Max wave height <b id="thresh-val">4.0 m</b></span>
+        <input id="thresh-range" type="range" min="0" max="8" step="0.5" value="4">
+        <span class="thresh-sub">Dims wave layer cells above this value; turns the wave layer on</span>
+      </div>
+      <div class="layers-group">Not available yet</div>
+      <div class="unavail">
+        <b>PFZ hotspots</b> - no verified machine-readable feed; we link the official INCOIS advisory instead.<br>
+        <b>AIS vessel fleet</b> - needs a vessel-data account and key (not connected).<br>
+        <b>IMBL sovereign zone</b> - no verified open boundary dataset found.<br>
+        <b>Optimal route line</b> - needs a routing engine we do not have.<br>
+        <b>SST range filter</b> - needs gridded SST values; the only verified value source (NOAA ERDDAP) may be unreachable from your network, and the tile sources are pre-coloured images.
+      </div>
+    </div>
+  </div>
+
+  <button id="chat-tab" title="Open chat">ASK<br>&#9666;</button>
+
+  <aside id="panel" class="hidden">
+    <div id="panel-head">
+      <div id="panel-tabs">
+        <button id="tab-btn-briefing" class="tab-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 4-2 5-1"/><path d="M2 14c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 4-2 5-1"/></svg> Briefing</button>
+        <button id="tab-btn-ask" class="tab-btn on"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/></svg> Ask</button>
+      </div>
+      <button id="panel-close" title="Close">&times;</button>
+    </div>
+    <div id="briefing-view" class="hidden">
+      <div class="msg bot"><b>Briefing</b> - tap any ocean point on the map and its temperature trend and current conditions load here.</div>
+    </div>
+    <div id="chat-view">
+      <div id="chat-context" class="hidden"></div>
+      <div id="chat-log"></div>
+    </div>
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" autocomplete="off" placeholder='Ask a follow-up...' />
+      <button id="chat-go">Ask</button>
+    </div>
+    <div id="chat-note">Keyword-based helper over public data, not an AI assistant. Tap the ocean for a local briefing.</div>
+  </aside>
+
+  <div id="layer-legends" class="hidden"></div>
+  <div id="species-chip" class="chip hidden"></div>
+  <div id="status" class="chip">Loading map...</div>
+</main>
+
+<section id="catalog-view" class="hidden">
+  <div id="catalog-inner">
+    <div id="catalog-head">
+      <div id="catalog-kicker">DATA</div>
+      <div id="catalog-title">Ocean Data Catalog</div>
+      <div id="catalog-sub">Scientific datasets and standardized marine data used by Ocean's Eye. Everything is fetched live from the named public service - no ingestion pipeline, no database; the server keeps only a short-lived in-memory cache (5 minutes, max 100 responses) so repeat questions answer quickly, and nothing survives a restart.</div>
+    </div>
+    <div id="catalog-tabs">
+      <button class="cat-tab on" data-cat="overview">Overview</button>
+      <button class="cat-tab" data-cat="sources">Sources <span id="cat-n-sources"></span></button>
+      <button class="cat-tab" data-cat="datasets">Datasets <span id="cat-n-datasets"></span></button>
+      <button class="cat-tab" data-cat="api">API <span id="cat-n-api"></span></button>
+    </div>
+    <input id="catalog-filter" type="text" autocomplete="off" placeholder="Filter datasets, providers, endpoints..." />
+    <div id="catalog-body"></div>
+  </div>
+</section>
+
+<footer id="footbar">
+  <div id="honesty">
+    Observation records show where life was reported, not where it is absent or abundant.
+    Temperature: NASA JPL MUR Level-4 satellite SST analysis via NOAA ERDDAP. Trends use ~30-day samples with
+    the seasonal cycle removed; significance is indicative, not proof. Built with AI assistance (disclosed).
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  window.addEventListener('error', e => {
+    const d = document.getElementById('err');
+    d.style.display = 'block';
+    d.textContent = 'JS error: ' + e.message;
+  });
+</script>
+<script type="module" src="app.js?v=6"></script>
+</body>
+</html>

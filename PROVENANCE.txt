@@ -1,0 +1,132 @@
+Ocean's Eye - provenance and fact ledger (assembled 2026-11-15, ~15:05-15:15 IST)
+
+PROJECT
+- Fresh build during the 2026 NASA Space Apps hackathon window (Nov 14-15). No code
+  imported from any prior project (including ORCA).
+- Idea origin: team (one map over public marine gridded data, plain-language
+  access, clean endpoints). AI tools accelerated implementation - disclosed in
+  README.md and source-file headers per the Space Apps SI rules.
+
+RULES SOURCES (observed directly via browser on 2026-11-15 ~15:04 IST)
+- Pune local event page: https://www.spaceappschallenge.org/2026/local-events/pune/
+  - "15 November 2026, 11:59 PM IST: Final project submission deadline."
+- Project Submission Guide (dated Nov 13, 2026):
+  https://www.spaceappschallenge.org/resources/project-submission-guide/
+  - Submit for Judging before Sun Nov 15, 11:59 p.m. local event time.
+  - Final Project link: public link, code repository explicitly allowed.
+  - Demo: 7 slides (incl. title/intro, English) OR <=30s video, public external link.
+  - SI use permitted with disclosure; code/data acknowledgment in text/metadata;
+    SI-generated images/videos need a visible watermark.
+  - Global Award eligibility requires >=1 NASA dataset/resource.
+  - Judging criteria: Impact, Creativity, Validity, Relevance, Presentation.
+- Challenge brief "Be An Earth System Trend Detective!":
+  https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/
+  (JS-rendered page; brief text corroborated via multiple event sites)
+  - Pick variables measured by NASA missions/models, visualize change over
+    time/place, determine what/where/how much is changing and whether the
+    change is statistically significant.
+
+DATA SOURCES (live-tested 2026-11-15 IST)
+- OBIS API (https://api.obis.org/v3): keyless, CORS-open.
+  - Example verified: Rhincodon typus grid precision 3 -> 840 cells with
+    records, 17,375 records in shown cells; 34,541 records in an Indian Ocean
+    bbox query (40..100E, -10..25N).
+  - Qualification: presence-only observation records, sampling-biased; not
+    abundance, absence, or distribution truth.
+- NASA JPL MUR SST (jplMURSST41) via NOAA CoastWatch ERDDAP
+  (https://coastwatch.pfeg.noaa.gov/erddap): keyless; NOT CORS-open, so the
+  app proxies it through /api/* (no upstream browser calls).
+  - Verified series at 15.0N, 72.0E: 291 samples, ~30-day stride (30-32 days),
+    2003-01-01T09:00Z to 2026-10-29T09:00Z, no duplicate timestamps, SST range
+    26.65..31.31 C, 285 of 287 calendar months represented (stride sampling,
+    not calendar-month aggregation).
+  - Trend on deseasonalized anomalies: +0.21 C/decade (SE +/-0.05),
+    Mann-Kendall z = 4.03, lag-1 autocorrelation 0.33 (significance reported
+    as indicative only).
+  - Field verified: 3,643 cells, 2026-11-13, bbox 8..20N / 68..78E, stride 24.
+  - Qualification: 1 km daily Level-4 satellite SST analysis grid (GHRSST MUR v4.1),
+    not a direct measurement at each cell. ERDDAP can be slow under load (one 503
+    observed); the app shows a visible error state on failure.
+- Basemap: (c) OpenStreetMap contributors, raster tiles darkened via CSS.
+
+TESTS
+- test/trend.test.mjs: 7 checks (slope recovery, deseasonalization,
+  Mann-Kendall on trending/flat series, autocorrelation detector, short-series
+  refusal, full pipeline). 7/7 passing on Node 22. Run: node test/trend.test.mjs
+
+RUN
+- node server.mjs (Node 18+; developed on Node 22). No dependencies, no keys,
+  no build step. PORT env var optional (default 8741).
+
+VISUAL VERIFICATION (headless Chrome, this workspace, 2026-11-15 ~15:07-15:14 IST)
+- Desktop 1440x900: home, whale-shark query, trend panel, SST field + legend,
+  failed-query state, endpoints disclosure.
+- Mobile 390x844: home, trend panel (padding fix verified).
+Open-Meteo marine API (wave height/period/direction, ocean current velocity/direction) — https://marine-api.open-meteo.com/v1/marine — numerical model output, CC BY 4.0 (https://open-meteo.com/en/license)
+Open-Meteo forecast API (wind speed/direction, surface pressure, precipitation) — https://api.open-meteo.com/v1/forecast — numerical model output, CC BY 4.0
+
+2026-11-15 ~15:23 IST: added /api/cell per-cell briefing (MUR SST + Open-Meteo marine/weather, each labeled model output with source URL); desktop + mobile screenshots verified (oe6, oe7). Chlorophyll layer probed and deferred: coastwatch.pfeg chla datasets stale (last data 2022-07); live global chl-a needs Earthdata login. Not included.
+
+2026-11-15 ~15:26 IST: /api/cell briefing corrections after review.
+- Direction conventions verified at owning docs:
+  - Waves: "Wave directions are always reported as the direction the waves
+    come from." (https://open-meteo.com/en/docs/marine-weather-api)
+  - Ocean current: "Direction following the flow of the current ... where the
+    current is heading towards." (same page) - so waves are FROM, current is TO.
+  - Wind: meteorological from-convention per NOAA/NWS glossary:
+    https://www.weather.gov/cae/weatherterms.html ("Wind Direction: The
+    direction from which the wind is blowing.")
+  UI labels updated accordingly (was "toward" for waves - fixed).
+- Resolutions from source docs: MUR 0.01deg (~1km) analysis grid; Open-Meteo
+  marine waves/currents ~0.08deg (~8km) with an explicit "not suitable for
+  coastal navigation" note; Open-Meteo weather resolution varies by model.
+  Each briefing section now shows the actual sampled grid point returned by
+  the upstream (no false shared-cell claim). Weather call passes
+  cell_selection=nearest so ocean taps do not silently snap to a land cell.
+- Briefing labeled "latest model snapshot, not a time-evolving pattern"
+  (user's weather-patterns ask is only a first step here).
+- Open-Meteo service terms (https://open-meteo.com/en/terms): free API is
+  non-commercial use only, CC-BY 4.0, rate caps 10k/day, 5k/hour, 600/min;
+  commercial use requires a paid plan. Noted in README; relevant if the
+  project's "clean endpoints for companies" idea ever goes commercial.
+- Input validation on /api/cell: finite lat/lon within +/-90 / +/-180;
+  upstream calls stay behind the fixed host allowlist with timeouts/cache/
+  rate limit as before.
+
+2026-11-15 ~15:39 IST: chat-style UI + roles + fish-records series (user request 15:36).
+- Panel redesigned to a chat log: compact cards, sources/method behind a
+  collapsed details line; layer toggles remain the visual control.
+- Role selector (researcher/student/fisherman) changes wording and suggested
+  questions only; facts, numbers and caveats identical across roles. It is a
+  preference stored in localStorage, not sign-in or profession verification.
+- New /api/species/series: OBIS statistics/years endpoint (verified live,
+  Scomberomorus commerson example), labeled reported records per year, not
+  abundance or a stock assessment.
+- PFZ: no verified machine-readable PFZ feed found this pass (INCOIS ERDDAP
+  search for pfz/fishing returned no datasets). INCOIS runs the official PFZ
+  advisory service (https://www.incois.gov.in/MarineFisheries/PfzAdvisory and
+  /PfzWebGis); the fisherman role links to it. Ocean's Eye does not compute
+  or republish fishing zones - deriving PFZ from SST/chlorophyll ourselves
+  would be an invented, safety-relevant advisory.
+
+2026-11-15 ~15:54 IST: information-architecture redesign (user request 15:46).
+- User pointed at their prior project ORCA (public repo
+  https://github.com/Cookie-CoDeRR/ORCA, inspected read-only at commit
+  6b40a3e8a96c355cb31cc86f62fc1f8a5d26c4e2) as a UI reference.
+- Adapted IA pattern only: map-first canvas; search + role selector in the
+  top bar; layer toggles in a popover top-left; chat as a collapsible
+  right-edge drawer. No ORCA code, assets, styling or private data was
+  copied; every file here remains original to Ocean's Eye.
+
+2026-11-15 ~16:12 IST: ORCA IA verification round 2 + artifact fixes.
+- Live ORCA deployment (https://orca-seven-bice.vercel.app) inspected via cloud
+  browser: map-first globe, left layers panel (base heatmap radio + overlay
+  toggles), right copilot drawer, dossier section, separate Data/Swarm/Vault
+  pages. IA pattern confirmed; still no code/assets/claims reused. ORCA's
+  in-app dataset counts, PFZ confidence figures and live-AIS labels are
+  unverified claims and are NOT adopted.
+- Ocean's Eye changes: chat drawer now closed by default (map-first, opens
+  via ASK tab / search / map tap); layers popover grouped into Base heatmap
+  vs Overlay; fixed empty species-chip and SST-legend pills rendering when
+  hidden (missing generic .hidden rule); softened basemap filter (the heavy
+  hue-rotate read as a stale scrim).
